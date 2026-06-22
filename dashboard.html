@@ -36,7 +36,41 @@
     input { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid var(--line); border-radius: 7px; }
     .btn-primary { width: 100%; margin-top: 14px; background: var(--go); color: #fff; border: none; padding: 12px; border-radius: 7px; font-weight: 600; cursor: pointer; }
     .error { color: var(--warn); font-size: 13px; margin-top: 8px; }
+    .success { color: var(--go); font-size: 13px; margin-top: 8px; }
     .hidden { display: none !important; }
+
+    .navbar { margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab {
+      background: none; border: none; padding: 10px 16px; font-size: 14px;
+      color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+      margin-top: 0; width: auto; border-radius: 0;
+    }
+    .nav-tab.active { color: var(--go); border-bottom-color: var(--go); font-weight: 600; }
+
+    .card-section {
+      background: #fff; border: 1px solid var(--line); border-radius: 10px;
+      padding: 20px; margin-bottom: 20px;
+    }
+    .card-section h2 { font-size: 15px; margin: 0 0 14px; }
+
+    .btn-secondary {
+      background: transparent; color: var(--ink); border: 1px solid var(--line);
+      width: 100%; padding: 12px; border-radius: 7px; font-weight: 600; cursor: pointer;
+    }
+
+    .row-action-btn {
+      font-size: 12px; padding: 5px 10px; border: 1px solid var(--line);
+      background: #fff; border-radius: 6px; cursor: pointer; width: auto; margin-top: 0;
+    }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100;
+    }
+    .modal-box {
+      background: #fff; border-radius: 10px; padding: 24px; max-width: 360px; width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -52,26 +86,105 @@
   </div>
 
   <div id="dash-screen" class="wrap hidden">
-    <h1>Today's check-ins</h1>
-    <div class="sub" id="date-label"></div>
-
-    <div class="summary">
-      <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Total logs</div></div>
-      <div class="stat"><div class="n" id="stat-ok">0</div><div class="l">Normal</div></div>
-      <div class="stat"><div class="n" id="stat-flagged" style="color:var(--warn);">0</div><div class="l">Flagged</div></div>
+    <div class="navbar">
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="tab-checkins">Today's Check-ins</button>
+        <button class="nav-tab" id="tab-employees">Employees</button>
+        <button class="nav-tab" id="tab-account">My Account</button>
+      </div>
     </div>
 
-    <table>
-      <thead>
-        <tr><th>Time</th><th>Employee</th><th>Type</th><th>Office</th><th>Status</th></tr>
-      </thead>
-      <tbody id="log-rows"></tbody>
-    </table>
+    <!-- ===================== TODAY'S CHECK-INS ===================== -->
+    <div id="panel-checkins">
+      <h1>Today's check-ins</h1>
+      <div class="sub" id="date-label"></div>
 
-    <div class="muted" id="empty-msg" style="margin-top:14px;">No check-ins recorded yet today.</div>
+      <div class="summary">
+        <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Total logs</div></div>
+        <div class="stat"><div class="n" id="stat-ok">0</div><div class="l">Normal</div></div>
+        <div class="stat"><div class="n" id="stat-flagged" style="color:var(--warn);">0</div><div class="l">Flagged</div></div>
+      </div>
 
-    <div style="margin-top:24px;">
-      <button id="refresh-btn">Refresh</button>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Employee</th><th>Type</th><th>Office</th><th>Status</th></tr>
+        </thead>
+        <tbody id="log-rows"></tbody>
+      </table>
+
+      <div class="muted" id="empty-msg" style="margin-top:14px;">No check-ins recorded yet today.</div>
+
+      <div style="margin-top:24px;">
+        <button id="refresh-btn">Refresh</button>
+      </div>
+    </div>
+
+    <!-- ===================== EMPLOYEES ===================== -->
+    <div id="panel-employees" class="hidden">
+      <h1>Employees</h1>
+      <div class="sub">Add new employees, or reset a forgotten password.</div>
+
+      <div class="card-section">
+        <h2>Add new employee</h2>
+        <label for="new-emp-name">Full name</label>
+        <input id="new-emp-name" type="text" placeholder="e.g. Somchai Jaidee" />
+        <label for="new-emp-username">Username</label>
+        <input id="new-emp-username" type="text" placeholder="e.g. somchai" autocapitalize="none" />
+        <label for="new-emp-password">Temporary password</label>
+        <input id="new-emp-password" type="text" placeholder="e.g. Welcome123!" />
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <input id="new-emp-admin" type="checkbox" style="width:auto;" />
+          <span style="font-size:13px;color:var(--ink);">Grant dashboard/admin access</span>
+        </label>
+        <button class="btn-primary" id="add-employee-btn">Add employee</button>
+        <div class="error hidden" id="add-employee-error"></div>
+        <div class="success hidden" id="add-employee-success"></div>
+      </div>
+
+      <div class="card-section">
+        <h2>Existing employees</h2>
+        <button id="refresh-employees-btn" style="margin-bottom:12px;">Refresh list</button>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Reset password</th></tr>
+          </thead>
+          <tbody id="employee-rows"></tbody>
+        </table>
+        <div class="muted" id="employees-empty-msg" style="margin-top:14px;">No employees yet.</div>
+      </div>
+    </div>
+
+    <!-- ===================== MY ACCOUNT ===================== -->
+    <div id="panel-account" class="hidden">
+      <h1>My Account</h1>
+      <div class="sub">Change your own dashboard password.</div>
+
+      <div class="card-section">
+        <label for="change-old-password">Current password</label>
+        <input id="change-old-password" type="password" />
+        <label for="change-new-password">New password</label>
+        <input id="change-new-password" type="password" />
+        <label for="change-new-password-confirm">Confirm new password</label>
+        <input id="change-new-password-confirm" type="password" />
+        <button class="btn-primary" id="change-password-btn">Change password</button>
+        <div class="error hidden" id="change-password-error"></div>
+        <div class="success hidden" id="change-password-success"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESET PASSWORD MODAL ===================== -->
+  <div id="reset-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2 style="margin-top:0;">Reset password</h2>
+      <div class="sub" id="reset-modal-employee-name"></div>
+      <label for="reset-new-password">New temporary password</label>
+      <input id="reset-new-password" type="text" placeholder="e.g. Welcome123!" />
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="btn-secondary" id="reset-modal-cancel" style="margin-top:0;">Cancel</button>
+        <button class="btn-primary" id="reset-modal-confirm" style="margin-top:0;">Reset</button>
+      </div>
+      <div class="error hidden" id="reset-modal-error"></div>
     </div>
   </div>
 
@@ -181,6 +294,222 @@
     }
 
     document.getElementById('refresh-btn').addEventListener('click', loadToday);
+
+    // ===================== TAB SWITCHING =====================
+    var panels = { checkins: 'panel-checkins', employees: 'panel-employees', account: 'panel-account' };
+    var tabs = { checkins: 'tab-checkins', employees: 'tab-employees', account: 'tab-account' };
+
+    function switchTab(name) {
+      Object.keys(panels).forEach(function(key) {
+        document.getElementById(panels[key]).classList.toggle('hidden', key !== name);
+        document.getElementById(tabs[key]).classList.toggle('active', key === name);
+      });
+      if (name === 'employees') loadEmployees();
+    }
+
+    document.getElementById('tab-checkins').addEventListener('click', function() { switchTab('checkins'); });
+    document.getElementById('tab-employees').addEventListener('click', function() { switchTab('employees'); });
+    document.getElementById('tab-account').addEventListener('click', function() { switchTab('account'); });
+
+    // ===================== ADD EMPLOYEE =====================
+    document.getElementById('add-employee-btn').addEventListener('click', function() {
+      var name = document.getElementById('new-emp-name').value.trim();
+      var username = document.getElementById('new-emp-username').value.trim();
+      var password = document.getElementById('new-emp-password').value;
+      var isAdmin = document.getElementById('new-emp-admin').checked;
+
+      hide('add-employee-error');
+      hide('add-employee-success');
+
+      if (!name || !username || !password) {
+        document.getElementById('add-employee-error').textContent = 'Fill in name, username, and a temporary password.';
+        show('add-employee-error');
+        return;
+      }
+      if (password.length < 6) {
+        document.getElementById('add-employee-error').textContent = 'Temporary password should be at least 6 characters.';
+        show('add-employee-error');
+        return;
+      }
+
+      var btn = document.getElementById('add-employee-btn');
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      clientHashPassword(password).then(function(hashedPassword) {
+        return callApi('adminAddEmployee', [token, name, username, hashedPassword, isAdmin]);
+      }).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Add employee';
+        if (res.ok) {
+          document.getElementById('add-employee-success').textContent =
+            'Added ' + name + '. Username: ' + username + '  Temporary password: ' + password +
+            '  — share these with the employee directly; they are not shown again.';
+          show('add-employee-success');
+          document.getElementById('new-emp-name').value = '';
+          document.getElementById('new-emp-username').value = '';
+          document.getElementById('new-emp-password').value = '';
+          document.getElementById('new-emp-admin').checked = false;
+          loadEmployees();
+        } else {
+          document.getElementById('add-employee-error').textContent = res.error;
+          show('add-employee-error');
+        }
+      }).catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Add employee';
+        document.getElementById('add-employee-error').textContent = 'Connection error: ' + err.message;
+        show('add-employee-error');
+      });
+    });
+
+    // ===================== LIST EMPLOYEES =====================
+    function loadEmployees() {
+      callApi('adminListEmployees', [token]).then(function(res) {
+        if (!res.ok) {
+          alert(res.error);
+          return;
+        }
+        var tbody = document.getElementById('employee-rows');
+        tbody.innerHTML = '';
+        if (res.employees.length === 0) {
+          show('employees-empty-msg');
+        } else {
+          hide('employees-empty-msg');
+          res.employees.forEach(function(emp) {
+            var tr = document.createElement('tr');
+            var roleLabel = emp.isAdmin ? 'Admin' : 'Employee';
+            var statusLabel = emp.active
+              ? '<span class="pill ok">Active</span>'
+              : '<span class="pill flag">Deactivated</span>';
+            var tdAction = document.createElement('td');
+            var resetBtn = document.createElement('button');
+            resetBtn.className = 'row-action-btn';
+            resetBtn.textContent = 'Reset password';
+            resetBtn.addEventListener('click', function() {
+              openResetModal(emp.employeeId, emp.name);
+            });
+            tdAction.appendChild(resetBtn);
+
+            tr.innerHTML =
+              '<td>' + emp.name + '</td>' +
+              '<td>' + emp.username + '</td>' +
+              '<td>' + roleLabel + '</td>' +
+              '<td>' + statusLabel + '</td>';
+            tr.appendChild(tdAction);
+            tbody.appendChild(tr);
+          });
+        }
+      }).catch(function(err) {
+        alert('Connection error: ' + err.message);
+      });
+    }
+
+    document.getElementById('refresh-employees-btn').addEventListener('click', loadEmployees);
+
+    // ===================== RESET PASSWORD MODAL =====================
+    var resetTargetEmployeeId = null;
+
+    function openResetModal(employeeId, employeeName) {
+      resetTargetEmployeeId = employeeId;
+      document.getElementById('reset-modal-employee-name').textContent = 'For: ' + employeeName;
+      document.getElementById('reset-new-password').value = '';
+      hide('reset-modal-error');
+      show('reset-modal');
+    }
+
+    function closeResetModal() {
+      hide('reset-modal');
+      resetTargetEmployeeId = null;
+    }
+
+    document.getElementById('reset-modal-cancel').addEventListener('click', closeResetModal);
+
+    document.getElementById('reset-modal-confirm').addEventListener('click', function() {
+      var newPassword = document.getElementById('reset-new-password').value;
+      hide('reset-modal-error');
+
+      if (!newPassword || newPassword.length < 6) {
+        document.getElementById('reset-modal-error').textContent = 'Enter a new password of at least 6 characters.';
+        show('reset-modal-error');
+        return;
+      }
+
+      var btn = document.getElementById('reset-modal-confirm');
+      btn.disabled = true;
+      btn.textContent = 'Resetting...';
+
+      clientHashPassword(newPassword).then(function(hashedPassword) {
+        return callApi('adminResetPassword', [token, resetTargetEmployeeId, hashedPassword]);
+      }).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Reset';
+        if (res.ok) {
+          alert('Password reset. New temporary password: ' + newPassword + ' — share this with the employee directly.');
+          closeResetModal();
+        } else {
+          document.getElementById('reset-modal-error').textContent = res.error;
+          show('reset-modal-error');
+        }
+      }).catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Reset';
+        document.getElementById('reset-modal-error').textContent = 'Connection error: ' + err.message;
+        show('reset-modal-error');
+      });
+    });
+
+    // ===================== CHANGE OWN PASSWORD =====================
+    document.getElementById('change-password-btn').addEventListener('click', function() {
+      var oldPassword = document.getElementById('change-old-password').value;
+      var newPassword = document.getElementById('change-new-password').value;
+      var confirmPassword = document.getElementById('change-new-password-confirm').value;
+
+      hide('change-password-error');
+      hide('change-password-success');
+
+      if (!oldPassword || !newPassword) {
+        document.getElementById('change-password-error').textContent = 'Fill in both your current and new password.';
+        show('change-password-error');
+        return;
+      }
+      if (newPassword.length < 6) {
+        document.getElementById('change-password-error').textContent = 'New password should be at least 6 characters.';
+        show('change-password-error');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        document.getElementById('change-password-error').textContent = 'New password and confirmation do not match.';
+        show('change-password-error');
+        return;
+      }
+
+      var btn = document.getElementById('change-password-btn');
+      btn.disabled = true;
+      btn.textContent = 'Changing...';
+
+      Promise.all([clientHashPassword(oldPassword), clientHashPassword(newPassword)]).then(function(hashes) {
+        return callApi('changeOwnPassword', [token, hashes[0], hashes[1]]);
+      }).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Change password';
+        if (res.ok) {
+          document.getElementById('change-password-success').textContent = 'Password changed successfully.';
+          show('change-password-success');
+          document.getElementById('change-old-password').value = '';
+          document.getElementById('change-new-password').value = '';
+          document.getElementById('change-new-password-confirm').value = '';
+        } else {
+          document.getElementById('change-password-error').textContent = res.error;
+          show('change-password-error');
+        }
+      }).catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Change password';
+        document.getElementById('change-password-error').textContent = 'Connection error: ' + err.message;
+        show('change-password-error');
+      });
+    });
   </script>
 </body>
 </html>
