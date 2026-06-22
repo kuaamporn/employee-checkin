@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>HR Dashboard</title>
+  <style>
+    :root {
+      --ink: #1a1d1f;
+      --paper: #fafaf8;
+      --line: #e2e0db;
+      --go: #1f6f4f;
+      --warn: #b5460a;
+      --muted: #6b6862;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--paper); color: var(--ink); }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 20px 60px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .summary { display: flex; gap: 12px; margin-bottom: 20px; }
+    .stat { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px; text-align: center; }
+    .stat .n { font-size: 26px; font-weight: 700; }
+    .stat .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
+    th { background: #f3f1ec; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .03em; }
+    tr:last-child td { border-bottom: none; }
+    .pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; }
+    .pill.ok { background: #d8efe2; color: #16523a; }
+    .pill.flag { background: #fde2d3; color: var(--warn); }
+    .reason { font-size: 12px; color: var(--warn); }
+    .muted { color: var(--muted); font-size: 13px; }
+    button { padding: 8px 14px; font-size: 13px; border: 1px solid var(--line); background: #fff; border-radius: 7px; cursor: pointer; }
+    .login-card { max-width: 360px; margin: 60px auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+    input { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid var(--line); border-radius: 7px; }
+    .btn-primary { width: 100%; margin-top: 14px; background: var(--go); color: #fff; border: none; padding: 12px; border-radius: 7px; font-weight: 600; cursor: pointer; }
+    .error { color: var(--warn); font-size: 13px; margin-top: 8px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div id="login-screen" class="login-card">
+    <h1 style="font-size:18px;">HR Dashboard — Sign in</h1>
+    <label for="username">Username</label>
+    <input id="username" type="text" />
+    <label for="password">Password</label>
+    <input id="password" type="password" />
+    <button class="btn-primary" id="login-btn">Sign in</button>
+    <div class="error hidden" id="login-error"></div>
+  </div>
+
+  <div id="dash-screen" class="wrap hidden">
+    <h1>Today's check-ins</h1>
+    <div class="sub" id="date-label"></div>
+
+    <div class="summary">
+      <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Total logs</div></div>
+      <div class="stat"><div class="n" id="stat-ok">0</div><div class="l">Normal</div></div>
+      <div class="stat"><div class="n" id="stat-flagged" style="color:var(--warn);">0</div><div class="l">Flagged</div></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Employee</th><th>Type</th><th>Office</th><th>Status</th></tr>
+      </thead>
+      <tbody id="log-rows"></tbody>
+    </table>
+
+    <div class="muted" id="empty-msg" style="margin-top:14px;">No check-ins recorded yet today.</div>
+
+    <div style="margin-top:24px;">
+      <button id="refresh-btn">Refresh</button>
+    </div>
+  </div>
+
+  <script>
+    // =====================================================================
+    // CONFIG — paste your Cloudflare Worker URL here
+    // (looks like https://employee-checkin-api.YOURNAME.workers.dev)
+    // Must match the same URL used in index.html.
+    // =====================================================================
+    var WORKER_API_URL = 'PASTE_YOUR_CLOUDFLARE_WORKER_URL_HERE';
+
+    var token = null;
+
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+    /**
+     * Hashes the password in the browser before sending — see index.html
+     * for the full explanation.
+     */
+    function clientHashPassword(password) {
+      var encoder = new TextEncoder();
+      var data = encoder.encode(password);
+      return crypto.subtle.digest('SHA-256', data).then(function(hashBuffer) {
+        var hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      });
+    }
+
+    /**
+     * Calls the Cloudflare Worker backend with a normal fetch() POST —
+     * see index.html for why this works reliably (the Worker sets
+     * Access-Control-Allow-Origin explicitly, unlike the old GAS backend).
+     */
+    function callApi(action, params) {
+      return fetch(WORKER_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, params: params || [] })
+      }).then(function(res) {
+        return res.json();
+      });
+    }
+
+    document.getElementById('login-btn').addEventListener('click', function() {
+      var username = document.getElementById('username').value.trim();
+      var password = document.getElementById('password').value;
+      hide('login-error');
+
+      clientHashPassword(password).then(function(hashedPassword) {
+        return callApi('login', [username, hashedPassword]);
+      }).then(function(res) {
+        if (res.ok) {
+          if (!res.isAdmin) {
+            document.getElementById('login-error').textContent = 'This account does not have dashboard access.';
+            show('login-error');
+            return;
+          }
+          token = res.token;
+          hide('login-screen');
+          show('dash-screen');
+          loadToday();
+        } else {
+          document.getElementById('login-error').textContent = res.error;
+          show('login-error');
+        }
+      }).catch(function(err) {
+        document.getElementById('login-error').textContent = 'Connection error: ' + err.message;
+        show('login-error');
+      });
+    });
+
+    function loadToday() {
+      callApi('dashboardGetToday', [token]).then(function(res) {
+        if (!res.ok) {
+          alert(res.error);
+          return;
+        }
+        document.getElementById('date-label').textContent = res.date;
+        document.getElementById('stat-total').textContent = res.totalLogs;
+        document.getElementById('stat-ok').textContent = res.okCount;
+        document.getElementById('stat-flagged').textContent = res.flaggedCount;
+
+        var tbody = document.getElementById('log-rows');
+        tbody.innerHTML = '';
+        if (res.rows.length === 0) {
+          show('empty-msg');
+        } else {
+          hide('empty-msg');
+          res.rows.forEach(function(row) {
+            var tr = document.createElement('tr');
+            var statusHtml = row.flagStatus === 'FLAGGED'
+              ? '<span class="pill flag">Flagged</span><div class="reason">' + row.flagReason + '</div>'
+              : '<span class="pill ok">OK</span>';
+            tr.innerHTML =
+              '<td>' + row.timestamp + '</td>' +
+              '<td>' + row.employeeName + '</td>' +
+              '<td>' + row.type + '</td>' +
+              '<td>' + row.officeName + '</td>' +
+              '<td>' + statusHtml + '</td>';
+            tbody.appendChild(tr);
+          });
+        }
+      }).catch(function(err) {
+        alert('Connection error: ' + err.message);
+      });
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadToday);
+  </script>
+</body>
+</html>
