@@ -96,7 +96,24 @@
           <div class="brand">Employee Check-In</div>
           <h1 id="welcome-name" style="font-size:20px;margin:0;"></h1>
         </div>
-        <a href="#" class="toplink" id="logout-link">Sign out</a>
+        <div style="text-align:right;">
+          <a href="#" class="toplink" id="change-password-link">Change password</a><br>
+          <a href="#" class="toplink" id="logout-link">Sign out</a>
+        </div>
+      </div>
+
+      <div class="card hidden" id="change-password-card">
+        <div style="font-weight:600;margin-bottom:12px;">Change password</div>
+        <label for="cp-old-password">Current password</label>
+        <input id="cp-old-password" type="password" autocomplete="current-password" />
+        <label for="cp-new-password">New password</label>
+        <input id="cp-new-password" type="password" autocomplete="new-password" />
+        <label for="cp-new-password-confirm">Confirm new password</label>
+        <input id="cp-new-password-confirm" type="password" autocomplete="new-password" />
+        <button class="btn-primary" id="cp-submit-btn">Change password</button>
+        <button class="btn-secondary" id="cp-cancel-btn">Cancel</button>
+        <div class="error hidden" id="cp-error"></div>
+        <div class="success hidden" id="cp-success"></div>
       </div>
 
       <div class="card">
@@ -127,6 +144,7 @@
     </div>
 
   </div>
+
 
   <!-- QR scanning library (lightweight, free, no API key needed) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -241,6 +259,72 @@
       callApi('logout', [sessionToken]).catch(function() {});
       sessionToken = null;
       location.reload();
+    });
+
+    // ---------- CHANGE PASSWORD ----------
+    document.getElementById('change-password-link').addEventListener('click', function(e) {
+      e.preventDefault();
+      hide('cp-error');
+      hide('cp-success');
+      document.getElementById('cp-old-password').value = '';
+      document.getElementById('cp-new-password').value = '';
+      document.getElementById('cp-new-password-confirm').value = '';
+      show('change-password-card');
+    });
+
+    document.getElementById('cp-cancel-btn').addEventListener('click', function() {
+      hide('change-password-card');
+    });
+
+    document.getElementById('cp-submit-btn').addEventListener('click', function() {
+      var oldPassword = document.getElementById('cp-old-password').value;
+      var newPassword = document.getElementById('cp-new-password').value;
+      var confirmPassword = document.getElementById('cp-new-password-confirm').value;
+
+      hide('cp-error');
+      hide('cp-success');
+
+      if (!oldPassword || !newPassword) {
+        document.getElementById('cp-error').textContent = 'Fill in both your current and new password.';
+        show('cp-error');
+        return;
+      }
+      if (newPassword.length < 6) {
+        document.getElementById('cp-error').textContent = 'New password should be at least 6 characters.';
+        show('cp-error');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        document.getElementById('cp-error').textContent = 'New password and confirmation do not match.';
+        show('cp-error');
+        return;
+      }
+
+      var btn = document.getElementById('cp-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Changing...';
+
+      Promise.all([clientHashPassword(oldPassword), clientHashPassword(newPassword)]).then(function(hashes) {
+        return callApi('changeOwnPassword', [sessionToken, hashes[0], hashes[1]]);
+      }).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Change password';
+        if (res.ok) {
+          document.getElementById('cp-success').textContent = 'Password changed successfully.';
+          show('cp-success');
+          document.getElementById('cp-old-password').value = '';
+          document.getElementById('cp-new-password').value = '';
+          document.getElementById('cp-new-password-confirm').value = '';
+        } else {
+          document.getElementById('cp-error').textContent = res.error;
+          show('cp-error');
+        }
+      }).catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Change password';
+        document.getElementById('cp-error').textContent = 'Connection error: ' + err.message;
+        show('cp-error');
+      });
     });
 
     // ---------- CAMERA PERMISSION + QR SCANNING ----------
