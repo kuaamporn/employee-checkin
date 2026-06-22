@@ -97,6 +97,7 @@
           <h1 id="welcome-name" style="font-size:20px;margin:0;"></h1>
         </div>
         <div style="text-align:right;">
+          <a href="dashboard.html" class="toplink hidden" id="admin-dashboard-link">Admin Dashboard</a><br>
           <a href="#" class="toplink" id="change-password-link">Change password</a><br>
           <a href="#" class="toplink" id="logout-link">Sign out</a>
         </div>
@@ -236,6 +237,11 @@
           sessionToken = res.token;
           currentEmployeeName = res.name;
           document.getElementById('welcome-name').textContent = 'Hi, ' + res.name;
+          if (res.isAdmin) {
+            show('admin-dashboard-link');
+          } else {
+            hide('admin-dashboard-link');
+          }
           hide('login-screen');
           show('main-screen');
           // Camera is started only when the user taps "Tap to start camera" —
